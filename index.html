@@ -603,29 +603,11 @@ async function sendMessage(){
   inp.value=''; inp.style.height='';
   showTyping();
 
-  try {
-    const response = await fetch('http://localhost:3000/api/chat', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-Client-Signature': 'mohi-v1-auth'
-      },
-      body: JSON.stringify({ message: text })
-    });
-
-    const data = await response.json();
+  // Simula o tempo de resposta da IA para manter a estética
+  setTimeout(() => {
     removeTyping();
-
-    if (data.reply) {
-      addMsg(data.reply, false);
-    } else if (data.error) {
-      addMsg(`Erro: ${data.error}`, false);
-    }
-  } catch (error) {
-    removeTyping();
-    addMsg("Não foi possível conectar ao servidor de segurança. Verifique se o backend está rodando.", false);
-    console.error('Fetch error:', error);
-  }
+    addMsg("chat ilustrativo!", false);
+  }, 1000);
 }
 
 function clickChip(el){inp.value=el.textContent;sendMessage();}
