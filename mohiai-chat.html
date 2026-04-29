@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>mohi·ai</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,200;0,300;1,200&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{cursor:none}
+
+:root{
+  --bg:#0c0c0c;
+  --surface:#141414;
+  --surface2:#1c1c1c;
+  --surface3:#222222;
+  --border:#2a2a2a;
+  --border2:#333;
+  --text:#f0ede8;
+  --text2:#a09d98;
+  --text3:#5a5856;
+  --accent:#e8e4dc;
+  --user-bg:#1e1e1e;
+  --ai-bg:transparent;
+  --scrollbar:#2a2a2a;
+}
+
+body{
+  font-family:'Geist',system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Cursor ── */
+#c-dot{
+  position:fixed;z-index:9999;pointer-events:none;
+  width:5px;height:5px;border-radius:50%;
+  background:var(--text);
+  transform:translate(-50%,-50%);
+  transition:width .15s,height .15s,opacity .15s;
+  mix-blend-mode:difference;
+}
+#c-ring{
+  position:fixed;z-index:9998;pointer-events:none;
+  width:32px;height:32px;border-radius:50%;
+  border:1px solid rgba(240,237,232,.35);
+  transform:translate(-50%,-50%);
+  transition:width .35s cubic-bezier(.25,.46,.45,.94),
+             height .35s cubic-bezier(.25,.46,.45,.94),
+             border-color .2s;
+  mix-blend-mode:difference;
+}
+canvas#trail{position:fixed;inset:0;pointer-events:none;z-index:9997;mix-blend-mode:screen}
+
+/* ── Layout ── */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:260px;min-width:260px;
+  background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  padding:0;
+  position:relative;
+}
+.sidebar-top{
+  padding:20px 16px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo{
+  font-family:'Geist',sans-serif;
+  font-size:13px;font-weight:400;
+  letter-spacing:0.2em;color:var(--accent);
+  display:flex;align-items:center;gap:6px;
+}
+.logo-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--text);opacity:.6;
+}
+
+.new-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 12px;border-radius:8px;
+  background:transparent;
+  border:1px solid var(--border2);
+  color:var(--text2);font-size:12px;font-weight:500;
+  cursor:none;transition:all .2s ease;
+  font-family:'Geist',sans-serif;
+}
+.new-btn:hover{background:var(--surface2);border-color:var(--text3);color:var(--text)}
+
+.sidebar-section{padding:20px 16px 8px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);font-weight:500}
+
+.hist-list{flex:1;overflow-y:auto;padding:4px 8px 8px;display:flex;flex-direction:column;gap:1px}
+.hist-list::-webkit-scrollbar{width:0}
+.hist-item{
+  padding:9px 10px;border-radius:8px;
+  font-size:13px;color:var(--text2);
+  cursor:none;display:flex;align-items:center;gap:9px;
+  transition:all .15s ease;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  border:1px solid transparent;
+}
+.hist-item.active{background:var(--surface2);border-color:var(--border);color:var(--text)}
+.hist-item:hover:not(.active){background:var(--surface2);color:var(--text)}
+.hist-icon{width:14px;height:14px;flex-shrink:0;opacity:.5}
+
+.sidebar-footer{
+  border-top:1px solid var(--border);
+  padding:12px 8px;
+}
+.user-row{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:8px;
+  cursor:none;transition:background .15s;
+}
+.user-row:hover{background:var(--surface2)}
+.avatar{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--surface3);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:600;color:var(--text2);flex-shrink:0;
+}
+.user-name{font-size:13px;font-weight:500;color:var(--text)}
+.user-plan{font-size:11px;color:var(--text3)}
+.user-more{margin-left:auto;color:var(--text3);font-size:16px;line-height:1}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* Top bar */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 24px;
+  border-bottom:1px solid var(--border);
+}
+.model-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 12px;border-radius:20px;
+  background:var(--surface2);border:1px solid var(--border);
+  font-size:12px;color:var(--text2);cursor:none;
+  transition:all .2s;
+}
+.model-pill:hover{border-color:var(--border2);color:var(--text)}
+.model-dot{width:6px;height:6px;border-radius:50%;background:#6b6b6b;flex-shrink:0}
+.topbar-actions{display:flex;gap:8px}
+.tb-btn{
+  width:32px;height:32px;border-radius:8px;
+  background:transparent;border:1px solid transparent;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text3);font-size:14px;cursor:none;
+  transition:all .2s;
+}
+.tb-btn:hover{background:var(--surface2);border-color:var(--border);color:var(--text2)}
+
+/* Messages */
+.messages{
+  flex:1;overflow-y:auto;
+  padding:0;
+  display:flex;flex-direction:column;
+  scroll-behavior:smooth;
+}
+.messages::-webkit-scrollbar{width:0}
+
+/* Welcome */
+.welcome{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:28px;
+  flex:1;padding:40px 24px;
+  text-align:center;
+  animation:fadeUp .6s ease both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.welcome-logo{
+  font-family:'Geist',sans-serif;
+  font-size:11px;font-weight:300;letter-spacing:.22em;
+  color:var(--text2);display:flex;align-items:center;gap:6px;
+}
+.welcome-logo-dot{width:3px;height:3px;border-radius:50%;background:var(--text3)}
+
+.welcome-title{
+  font-family:'DM Sans',sans-serif;
+  font-size:26px;font-weight:200;color:var(--text);
+  line-height:1.25;letter-spacing:-.01em;
+}
+.welcome-sub{font-size:14px;color:var(--text2);line-height:1.7;max-width:360px;font-weight:300}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:540px}
+.chip{
+  padding:9px 16px;border-radius:24px;
+  border:1px solid var(--border2);
+  background:var(--surface);
+  font-size:12.5px;color:var(--text2);
+  cursor:none;transition:all .2s ease;
+  font-family:'Geist',sans-serif;
+}
+.chip:hover{background:var(--surface2);border-color:var(--text3);color:var(--text);transform:translateY(-1px)}
+
+/* Message area */
+.msg-feed{display:flex;flex-direction:column}
+.msg-group{
+  padding:20px 0;
+  border-bottom:1px solid var(--border);
+  animation:fadeUp .35s ease both;
+}
+.msg-group:last-child{border-bottom:none}
+
+.msg-inner{max-width:720px;margin:0 auto;width:100%;padding:0 24px;display:flex;gap:16px}
+
+.msg-ava{
+  width:28px;height:28px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:600;margin-top:1px;
+}
+.msg-ava.ai{background:var(--surface3);border:1px solid var(--border2);color:var(--text2)}
+.msg-ava.user{background:var(--surface2);border:1px solid var(--border2);color:var(--text2)}
+
+.msg-body{flex:1;min-width:0}
+.msg-name{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:.01em}
+.msg-text{font-size:14.5px;line-height:1.8;color:var(--text);font-weight:300}
+.msg-text p{margin-bottom:8px}
+.msg-text p:last-child{margin-bottom:0}
+
+.msg-actions-row{
+  display:flex;gap:4px;margin-top:10px;opacity:0;
+  transition:opacity .2s;
+}
+.msg-group:hover .msg-actions-row{opacity:1}
+.act-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:4px 8px;border-radius:6px;
+  background:transparent;border:1px solid transparent;
+  font-size:11px;color:var(--text3);cursor:none;
+  transition:all .15s;font-family:'Geist',sans-serif;
+}
+.act-btn:hover{background:var(--surface2);border-color:var(--border);color:var(--text2)}
+
+/* Typing */
+.typing-dots{display:flex;gap:4px;padding:4px 0}
+.typing-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--text3);
+  animation:bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2){animation-delay:.2s}
+.typing-dot:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-5px);opacity:1}}
+
+/* Input */
+.input-wrap{
+  border-top:1px solid var(--border);
+  padding:16px 24px 20px;
+  background:var(--bg);
+}
+.input-box{
+  max-width:720px;margin:0 auto;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:16px;
+  padding:14px 16px;
+  transition:border-color .25s,box-shadow .25s;
+}
+.input-box:focus-within{
+  border-color:#444;
+  box-shadow:0 0 0 3px rgba(240,237,232,.04);
+}
+.input-top{display:flex;align-items:flex-end;gap:12px}
+textarea{
+  flex:1;background:transparent;border:none;outline:none;
+  color:var(--text);font-family:'Geist',sans-serif;
+  font-size:14px;font-weight:300;
+  resize:none;line-height:1.65;
+  min-height:22px;max-height:180px;
+  scrollbar-width:none;padding:3px 0;
+}
+textarea::placeholder{color:var(--text3)}
+textarea::-webkit-scrollbar{display:none}
+.send-btn{
+  width:34px;height:34px;border-radius:9px;
+  background:var(--text);border:none;
+  display:flex;align-items:center;justify-content:center;
+  cursor:none;color:var(--bg);font-size:15px;flex-shrink:0;
+  transition:all .2s;opacity:.85;
+}
+.send-btn:hover{opacity:1;transform:scale(1.05)}
+.send-btn:active{transform:scale(.95)}
+.send-btn svg{fill:var(--bg);width:15px;height:15px}
+
+.input-bottom{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--border);
+}
+.input-tools{display:flex;gap:4px}
+.tool-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:4px 8px;border-radius:6px;
+  background:transparent;border:1px solid transparent;
+  font-size:12px;color:var(--text3);cursor:none;
+  transition:all .15s;font-family:'Geist',sans-serif;
+}
+.tool-btn:hover{background:var(--surface2);border-color:var(--border);color:var(--text2)}
+.input-hint{font-size:11px;color:var(--text3)}
+.input-hint kbd{
+  padding:1px 5px;border-radius:4px;
+  background:var(--surface2);border:1px solid var(--border2);
+  font-family:'Geist',monospace;font-size:10px;color:var(--text2);
+}
+
+*{cursor:none!important}
+</style>
+</head>
+<body>
+
+<div id="c-dot"></div>
+<div id="c-ring"></div>
+<canvas id="trail"></canvas>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="logo">
+        m o h i
+        <div class="logo-dot"></div>
+        a i
+      </div>
+      <button class="new-btn" onclick="resetChat()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo
+      </button>
+    </div>
+
+    <div class="sidebar-section">Recentes</div>
+
+    <div class="hist-list">
+      <div class="hist-item active">
+        <svg class="hist-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chat atual
+      </div>
+      <div class="hist-item">
+        <svg class="hist-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Análise de dados Q3
+      </div>
+      <div class="hist-item">
+        <svg class="hist-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Estratégia de conteúdo
+      </div>
+      <div class="hist-item">
+        <svg class="hist-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Revisão do pitch deck
+      </div>
+      <div class="hist-item">
+        <svg class="hist-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Pesquisa de mercado
+      </div>
+      <div class="hist-item">
+        <svg class="hist-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Automação de fluxo
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-row">
+        <div class="avatar">U</div>
+        <div>
+          <div class="user-name">Usuário</div>
+          <div class="user-plan">Plano Pro</div>
+        </div>
+        <div class="user-more">···</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div class="model-pill">
+        <div class="model-dot"></div>
+        mohi·ai — Pro
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:2px;opacity:.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="topbar-actions">
+        <button class="tb-btn" title="Compartilhar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="tb-btn" title="Configurações">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <!-- Welcome state -->
+      <div class="welcome" id="welcome">
+        <div class="welcome-logo">
+          m o h i <div class="welcome-logo-dot"></div> a i
+        </div>
+        <div>
+          <div class="welcome-title">Como posso ajudar?</div>
+          <div class="welcome-sub" style="margin-top:10px">Assistente inteligente para análises, criação de conteúdo e muito mais.</div>
+        </div>
+        <div class="chips">
+          <button class="chip" onclick="clickChip(this)">Criar um texto persuasivo</button>
+          <button class="chip" onclick="clickChip(this)">Analisar dados de performance</button>
+          <button class="chip" onclick="clickChip(this)">Gerar ideias de negócio</button>
+          <button class="chip" onclick="clickChip(this)">Revisar meu código</button>
+          <button class="chip" onclick="clickChip(this)">Resumir um documento</button>
+          <button class="chip" onclick="clickChip(this)">Planejar uma estratégia</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-wrap">
+      <div class="input-box">
+        <div class="input-top">
+          <textarea id="inp" placeholder="Escreva uma mensagem para mohi·ai…" rows="1"
+            onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 4l8 16-8-4-8 4z" transform="rotate(-90 12 12)"/></svg>
+          </button>
+        </div>
+        <div class="input-bottom">
+          <div class="input-tools">
+            <button class="tool-btn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              Anexar
+            </button>
+            <button class="tool-btn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Imagem
+            </button>
+          </div>
+          <div class="input-hint"><kbd>Shift</kbd> + <kbd>Enter</kbd> para nova linha</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ─── CURSOR ─────────────────────────────────
+const dot   = document.getElementById('c-dot');
+const ring  = document.getElementById('c-ring');
+const cv    = document.getElementById('trail');
+const ctx   = cv.getContext('2d');
+let mx=0,my=0,rx=0,ry=0,pts=[];
+
+cv.width=innerWidth; cv.height=innerHeight;
+addEventListener('resize',()=>{cv.width=innerWidth;cv.height=innerHeight});
+
+addEventListener('mousemove',e=>{
+  mx=e.clientX; my=e.clientY;
+  dot.style.left=mx+'px'; dot.style.top=my+'px';
+  pts.push({x:mx,y:my,a:.3,r:1.5+Math.random()*1.5});
+  if(pts.length>35)pts.shift();
+});
+
+function attachHover(){
+  document.querySelectorAll('button,a,.chip,.hist-item,.user-row,.model-pill').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{
+      ring.style.width='44px'; ring.style.height='44px';
+      ring.style.borderColor='rgba(240,237,232,.7)';
+      dot.style.width='3px'; dot.style.height='3px';
+    });
+    el.addEventListener('mouseleave',()=>{
+      ring.style.width='32px'; ring.style.height='32px';
+      ring.style.borderColor='rgba(240,237,232,.35)';
+      dot.style.width='5px'; dot.style.height='5px';
+    });
+  });
+}
+attachHover();
+
+(function loop(){
+  rx+=(mx-rx)*.1; ry+=(my-ry)*.1;
+  ring.style.left=rx+'px'; ring.style.top=ry+'px';
+  ctx.clearRect(0,0,cv.width,cv.height);
+  pts=pts.filter(p=>p.a>.01);
+  pts.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(180,178,172,${p.a})`;
+    ctx.fill();
+    p.a*=.86; p.r*=.93;
+  });
+  requestAnimationFrame(loop);
+})();
+
+// ─── CHAT ─────────────────────────────────
+const msgs = document.getElementById('messages');
+const inp  = document.getElementById('inp');
+let aiIdx=0;
+
+const replies=[
+  "Entendido! Com base no que você compartilhou, posso oferecer uma análise aprofundada e sugestões personalizadas para alcançar seus objetivos.",
+  "Ótima questão. Vou detalhar isso de forma clara e objetiva, considerando os aspectos mais relevantes para o seu contexto.",
+  "Claro, posso ajudar com isso. Aqui está uma abordagem estruturada que pode ser útil para a sua situação específica.",
+  "Interessante ponto de vista. Existem algumas perspectivas importantes a considerar antes de tomar uma decisão sobre isso.",
+  "Com prazer. A MOHI AI analisa padrões e contextos para oferecer respostas precisas e acionáveis para o que você precisa.",
+  "Vou trabalhar nisso agora. Combinando raciocínio analítico com criatividade, aqui está o que desenvolvi para você."
+];
+
+function getTime(){
+  const n=new Date();
+  return n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+}
+
+function hideWelcome(){
+  const w=document.getElementById('welcome');
+  if(w)w.remove();
+}
+
+function getMsgFeed(){
+  let f=document.getElementById('msg-feed');
+  if(!f){
+    f=document.createElement('div');
+    f.id='msg-feed'; f.className='msg-feed';
+    msgs.appendChild(f);
+  }
+  return f;
+}
+
+function addMsg(text,isUser){
+  hideWelcome();
+  const feed=getMsgFeed();
+  const g=document.createElement('div');
+  g.className='msg-group';
+  g.style.animationDelay='0s';
+
+  const name=isUser?'Você':'mohi·ai';
+  const avaClass=isUser?'user':'ai';
+  const avaLabel=isUser?'U':'M';
+
+  g.innerHTML=`
+    <div class="msg-inner">
+      <div class="msg-ava ${avaClass}">${avaLabel}</div>
+      <div class="msg-body">
+        <div class="msg-name">${name} <span style="opacity:.35;font-weight:300;font-size:11px">${getTime()}</span></div>
+        <div class="msg-text"><p>${text}</p></div>
+        ${!isUser?`<div class="msg-actions-row">
+          <button class="act-btn">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copiar
+          </button>
+          <button class="act-btn">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+            Útil
+          </button>
+          <button class="act-btn">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+            Não útil
+          </button>
+          <button class="act-btn">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.8"/></svg>
+            Regenerar
+          </button>
+        </div>`:''}
+      </div>
+    </div>`;
+  feed.appendChild(g);
+  msgs.scrollTop=msgs.scrollHeight;
+  attachHover();
+}
+
+function showTyping(){
+  hideWelcome();
+  const feed=getMsgFeed();
+  const g=document.createElement('div');
+  g.className='msg-group'; g.id='typing';
+  g.innerHTML=`
+    <div class="msg-inner">
+      <div class="msg-ava ai">M</div>
+      <div class="msg-body">
+        <div class="msg-name">mohi·ai</div>
+        <div class="typing-dots">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+    </div>`;
+  feed.appendChild(g);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function removeTyping(){const t=document.getElementById('typing');if(t)t.remove();}
+
+async function sendMessage(){
+  const text=inp.value.trim();
+  if(!text)return;
+  
+  addMsg(text,true);
+  inp.value=''; inp.style.height='';
+  showTyping();
+
+  try {
+    const response = await fetch('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Client-Signature': 'mohi-v1-auth'
+      },
+      body: JSON.stringify({ message: text })
+    });
+
+    const data = await response.json();
+    removeTyping();
+
+    if (data.reply) {
+      addMsg(data.reply, false);
+    } else if (data.error) {
+      addMsg(`Erro: ${data.error}`, false);
+    }
+  } catch (error) {
+    removeTyping();
+    addMsg("Não foi possível conectar ao servidor de segurança. Verifique se o backend está rodando.", false);
+    console.error('Fetch error:', error);
+  }
+}
+
+function clickChip(el){inp.value=el.textContent;sendMessage();}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function autoResize(el){el.style.height='';el.style.height=Math.min(el.scrollHeight,180)+'px';}
+
+function resetChat(){
+  msgs.innerHTML='';
+  const w=document.createElement('div');
+  w.className='welcome'; w.id='welcome';
+  w.innerHTML=`
+    <div class="welcome-logo">m o h i <div class="welcome-logo-dot"></div> a i</div>
+    <div>
+      <div class="welcome-title">Como posso ajudar?</div>
+      <div class="welcome-sub" style="margin-top:10px">Assistente inteligente para análises, criação de conteúdo e muito mais.</div>
+    </div>
+    <div class="chips">
+      <button class="chip" onclick="clickChip(this)">Criar um texto persuasivo</button>
+      <button class="chip" onclick="clickChip(this)">Analisar dados de performance</button>
+      <button class="chip" onclick="clickChip(this)">Gerar ideias de negócio</button>
+      <button class="chip" onclick="clickChip(this)">Revisar meu código</button>
+      <button class="chip" onclick="clickChip(this)">Resumir um documento</button>
+      <button class="chip" onclick="clickChip(this)">Planejar uma estratégia</button>
+    </div>`;
+  msgs.appendChild(w);
+  attachHover();
+}
+</script>
+</body>
+</html>
